@@ -1,3 +1,11 @@
+// usage: ./counter_test <a,m> count nthreads
+// 
+// first arg is "a" for atomic or "m" for mutex implementation.
+// second arg is number of times to increment each counter
+// third arg is the number of threads to use
+//
+// threshold is fixed at 1000
+
 #include "counter.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -23,11 +31,9 @@ static void *m_thread(void *arg)
 
 int main(int argc, char **argv)
 {
-        pthread_t threads[64];
-
         unsigned threshold = 1000;
         
-        if (argc != 3)
+        if (argc != 4)
                 exit(2);
 
         int atomic = 0;
@@ -42,8 +48,12 @@ int main(int argc, char **argv)
                 init_gc_mutex(&mc, threshold);
 
         unsigned long count = atol(argv[2]);
+        unsigned long nthreads = atol(argv[3]);
+        
+        pthread_t *threads = malloc(nthreads * sizeof *threads);
+        assert(threads);        
 
-        for (size_t i = 0; i < 64; ++i) {
+        for (size_t i = 0; i < nthreads; ++i) {
                 if (atomic)
                         pthread_create(threads + i, NULL, a_thread,
                                        (void*)count);
@@ -52,7 +62,7 @@ int main(int argc, char **argv)
                                        (void*)count);
         }
 
-        for (size_t i = 0; i < 64; ++i)
+        for (size_t i = 0; i < nthreads; ++i)
                 pthread_join(threads[i], NULL);
 
         unsigned long final_count;
@@ -63,5 +73,5 @@ int main(int argc, char **argv)
                 finalize_gc_mutex(&mc);
                 final_count = mc.global;
         }
-        assert(final_count == 64 * count);
+        assert(final_count == nthreads * count);
 }
